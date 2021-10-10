@@ -571,10 +571,10 @@ interface IRoyalBetting {
      * @notice Buy tickets for the current betting
      * @param _bettingId: bettingId
      * @param _ticketNumber: ticket number
-     * @param nKind: ticket kind
+     * @param placeKind: place kind
      * @dev Callable by users
      */
-    function buyTickets(uint256 _bettingId, uint _ticketNumber, uint nKind) external payable;
+    function buyTickets(uint256 _bettingId, uint _ticketNumber, uint placeKind) external payable;
 
     /**
      * @notice Claim a set of winning tickets for a betting
