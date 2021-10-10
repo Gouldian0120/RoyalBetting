@@ -558,7 +558,7 @@ interface IRandomNumberGenerator {
     /**
      * View latest bettingId numbers
      */
-    function viewLatestLotteryId() external view returns (uint256);
+    function viewLatestBettingId() external view returns (uint256);
 
     /**
      * Views random result
@@ -594,25 +594,23 @@ interface IRoyalBetting {
      * @param _bettingId: betting id
      * @dev Callable by operator
      */
-    function closeLottery(uint256 _bettingId) external;
+    function closeBetting(uint256 _bettingId) external;
 
     /**
-     * @notice Draw the final number, calculate reward in BQB per group, and make betting claimable
+     * @notice Draw the final number, calculate reward in ETH per group, and make betting claimable
      * @param _bettingId: betting id
      * @dev Callable by operator
      */
-    function drawFinalNumberAndMakeLotteryClaimable(uint256 _bettingId) external;
+    function drawRacingNumberAndMakeBettingClaimable(uint256 _bettingId) external;
 
     /**
      * @notice Start the betting
      * @dev Callable by operator
-     * @param _endTime: endTime of the betting
-     * @param _priceTicketInBQB: price of a ticket in BQB
+     * @param _priceTicketInETH: price of a ticket in ETH
      * @param _rewardsBreakdown: 
      */
-    function startLottery(
-        uint256 _endTime,
-        uint256[2] memory _priceTicketInBQB,
+    function startBetting(
+        uint256[2] memory _priceTicketInETH,
         uint256[2] memory _rewardsBreakdown
     ) external;
 
@@ -623,16 +621,16 @@ interface IRoyalBetting {
 }
 
 interface RandomNumberGenerator {
-    function setLotteryAddress(address _royalBetting) external;
+    function setBettingAddress(address _royalBetting) external;
     function setFee(uint256 _fee) external;
     function setKeyHash(bytes32 _keyHash) external;
 }
 
-// File: contracts/BloqBallSwapLottery.sol
+// File: contracts/BloqBallSwapBetting.sol
 
 pragma abicoder v2;
 
-/** @title RoyalBetting.
+/**@title RoyalBetting.
  * @notice It is a contract for a betting system using
  * randomness provided externally.
  */
@@ -646,6 +644,9 @@ contract RoyalBetting is ReentrancyGuard, IRoyalBetting, Ownable {
 
     uint256 public constant WINNING_PLACE = 1; 
     uint256 public constant FIRST_THIRD_PLACE = 2;
+    uint256 public placePeriod = 1 days;
+    uint256 public limitClaimablePeriod = 3 days;
+
     uint256 public ownerTransferAmountRate = 2000;      // 20%
 
     bool    private enableChainlinkRandomGenerator = false;
@@ -663,13 +664,13 @@ contract RoyalBetting is ReentrancyGuard, IRoyalBetting, Ownable {
         Status status;
         uint256 startTime;
         uint256 endTime;
-        uint256[2] priceTicketInBQB;
+        uint256[2] priceTicketInETH;        // priceTicketInETH[0] : winning place, priceTicketInETH[1] : 1-3rd place
         uint256[2] rewardsBreakdown;        // 0: 6500(65%), 1: 2500(25%)
-        uint256[2] BQBPerBracket;
+        uint256[2] ETHPerBracket;
         uint256[2] countWinnersPerBracket;
         uint256 firstTicketId;
-        uint256 firstTicketIdNextLottery;
-        uint256 amountCollectedInBQB;
+        uint256 firstTicketIdNextBetting;
+        uint256 amountCollectedInETH;
         uint256 finalNumber;
         uint256 amountOfPurchasedPeople;
         uint256 amountOfNotClaimed;
@@ -680,19 +681,18 @@ contract RoyalBetting is ReentrancyGuard, IRoyalBetting, Ownable {
         address owner;
     }
 
-    // Mapping are cheaper than arrays
     mapping(uint256 => Betting) private _bettings;
     mapping(uint256 => Ticket) private _tickets;
 
-    // Keeps track of number of ticket per unique combination for each bettingId
-    mapping(uint256 => mapping(uint256 => uint256)) public _numberTicketsPerLotteryId;
+    // Keeps track of number of ticket per each bettingId
+    mapping(uint256 => mapping(uint256 => uint256)) public _numberTicketsPerBettingId;
 
     // Keep track of user ticket ids for a given bettingId
-    mapping(address => mapping(uint256 => uint256[])) public _userTicketIdsPerLotteryId;
-    mapping(address => mapping(uint256 => mapping(uint256 => bool))) public _isUserTicketIdsPerLotteryId;
+    mapping(address => mapping(uint256 => uint256[])) public _userTicketIdsPerBettingId;
+    mapping(address => mapping(uint256 => mapping(uint256 => bool))) public _isUserTicketIdsPerBettingId;
     
    // Keep track of user wining rewards for a given bettingId
-    mapping(address => mapping(uint256 => uint256)) public _userWiningRewardsPerLotteryId;
+    mapping(address => mapping(uint256 => uint256)) public _userWiningRewardsPerBettingId;
 
     modifier notContract() {
         require(!_isContract(msg.sender), "Contract not allowed");
@@ -705,14 +705,14 @@ contract RoyalBetting is ReentrancyGuard, IRoyalBetting, Ownable {
         _;
     }
 
-    event LotteryClose(uint256 indexed bettingId, uint256 firstTicketIdNextLottery);
-    event LotteryOpen(
+    event BettingClose(uint256 indexed bettingId, uint256 firstTicketIdNextBetting);
+    event BettingOpen(
         uint256 indexed bettingId,
         uint256 startTime,
         uint256 endTime,
         uint256 firstTicketId
     );
-    event LotteryNumberDrawn(uint256 indexed bettingId, uint256 finalNumber);
+    event BettingNumberDrawn(uint256 indexed bettingId, uint256 finalNumber);
     event NewOperatorAddresses(address operator);
     event NewRandomGenerator(address indexed randomGenerator);
     event TicketsPurchase(address indexed buyer, uint256 indexed bettingId);
@@ -729,18 +729,18 @@ contract RoyalBetting is ReentrancyGuard, IRoyalBetting, Ownable {
      * @notice Generate tickets number for the current buyer
      * @dev Callable by users
      */
-    function generateTicketNumber() private view onlyOperator returns (uint256){
-        uint256 ticketNumber;
+    function generateRacingNumber() private view onlyOperator returns (uint256){
+        uint256 racingNumber;
         uint _itemNumber;
 
-        ticketNumber = 0;
+        racingNumber = 0;
         for (uint i = 0; i < 10; i++)
         {
             _itemNumber = uint256(keccak256(abi.encodePacked(block.difficulty, block.timestamp, i))) % 10 + 1;
-            ticketNumber += _itemNumber * uint256(10)**(i*2);
+            racingNumber += _itemNumber * uint256(10)**(i*2);
         }
         
-        return ticketNumber;
+        return racingNumber;
     }
     
     /**
@@ -749,20 +749,19 @@ contract RoyalBetting is ReentrancyGuard, IRoyalBetting, Ownable {
      */
     function setRandomGenerator(address _randomGeneratorAddress) public onlyOperator {
         randomGenerator = IRandomNumberGenerator(_randomGeneratorAddress);
-        RandomNumberGenerator(_randomGeneratorAddress).setLotteryAddress(address(this));
+        RandomNumberGenerator(_randomGeneratorAddress).setBettingAddress(address(this));
         
         enableChainlinkRandomGenerator = true;
     }
     
-
     /**
      * @notice Buy tickets for the current betting
      * @param _bettingId: bettingId
-     * @param _ticketNumber: array of ticket numbers between 1,000,000 and 1,999,999
-     * @param nKind:
+     * @param _ticketNumber: ticket numbers between 1, 10
+     * @param _placeKind:kind of place
      * @dev Callable by users
      */
-    function buyTickets(uint256 _bettingId, uint _ticketNumber, uint nKind)
+    function buyTickets(uint256 _bettingId, uint _ticketNumber, uint _placeKind)
         payable
         external
         override
@@ -773,31 +772,29 @@ contract RoyalBetting is ReentrancyGuard, IRoyalBetting, Ownable {
         require(block.timestamp < _bettings[_bettingId].endTime, "Betting is over");
 
         uint newTicketNumber;
-        if (nKind == WINNING_PLACE)
+        if (_placeKind == WINNING_PLACE)
             newTicketNumber = _ticketNumber * (10 ** 2);
-        else if (nKind == FIRST_THIRD_PLACE)
+        else if (_placeKind == FIRST_THIRD_PLACE)
             newTicketNumber = _ticketNumber;
 
-        if (_isUserTicketIdsPerLotteryId[msg.sender][_bettingId][newTicketNumber])
+        if (_isUserTicketIdsPerBettingId[msg.sender][_bettingId][newTicketNumber])
             return;
 
-        require(msg.value == _bettings[_bettingId].priceTicketInBQB[nKind - 1], "Price is error.");
+        require(msg.value == _bettings[_bettingId].priceTicketInETH[_placeKind - 1], "Price is error.");
 
-        // Increment the total amount collected for the betting round
-        _bettings[_bettingId].amountCollectedInBQB += _bettings[_bettingId].priceTicketInBQB[nKind - 1];
+        _bettings[_bettingId].amountCollectedInETH += _bettings[_bettingId].priceTicketInETH[_placeKind - 1];
         
-        if (_userTicketIdsPerLotteryId[msg.sender][_bettingId].length == 0)
+        if (_userTicketIdsPerBettingId[msg.sender][_bettingId].length == 0)
             _bettings[_bettingId].amountOfPurchasedPeople++;
 
-        _numberTicketsPerLotteryId[_bettingId][newTicketNumber]++;
+        _numberTicketsPerBettingId[_bettingId][newTicketNumber]++;
 
-        _userTicketIdsPerLotteryId[msg.sender][_bettingId].push(currentTicketId);
+        _userTicketIdsPerBettingId[msg.sender][_bettingId].push(currentTicketId);
 
-        _isUserTicketIdsPerLotteryId[msg.sender][_bettingId][newTicketNumber] = true;
+        _isUserTicketIdsPerBettingId[msg.sender][_bettingId][newTicketNumber] = true;
 
         _tickets[currentTicketId] = Ticket({number: newTicketNumber, owner: msg.sender});
 
-        // Increase betting ticket number
         currentTicketId++;
 
         emit TicketsPurchase(msg.sender, _bettingId);
@@ -809,8 +806,8 @@ contract RoyalBetting is ReentrancyGuard, IRoyalBetting, Ownable {
         external view
         returns (uint256[] memory new_ticketIds, uint256[] memory new_brackets, uint256 pendingRewards)
     {
-        uint256[] memory _ticketIds = _userTicketIdsPerLotteryId[_account][_bettingId];
-        uint ticketLength = _userTicketIdsPerLotteryId[_account][_bettingId].length;
+        uint256[] memory _ticketIds = _userTicketIdsPerBettingId[_account][_bettingId];
+        uint ticketLength = _userTicketIdsPerBettingId[_account][_bettingId].length;
 
         uint32[] memory _brackets = new uint32[](ticketLength);
         bool[] memory ticketStatus;
@@ -886,39 +883,38 @@ contract RoyalBetting is ReentrancyGuard, IRoyalBetting, Ownable {
         uint32[] calldata _brackets
     ) external override notContract nonReentrant {
         require(_bettings[_bettingId].status == Status.Claimable, "Betting not claimable");
-        require(block.timestamp <= _bettings[_bettingId].endTime + 3 * 24 * 3600, "Claimable period is ended.");
+        require(block.timestamp <= _bettings[_bettingId].endTime + limitClaimablePeriod, "Claimable period is ended.");
 
-        // Initializes the rewardInBQBToTransfer
-        uint256 rewardInBQBToTransfer;
-
+        // Initializes the rewardInETHToTransfer
+        uint256 rewardInETHToTransfer;
+        uint256 rewardForTicketId;
         for (uint256 i = 0; i < _ticketIds.length; i++) {
             uint256 thisTicketId = _ticketIds[i];
 
-            require(_bettings[_bettingId].firstTicketIdNextLottery > thisTicketId, "TicketId too high");
+            require(_bettings[_bettingId].firstTicketIdNextBetting > thisTicketId, "TicketId too high");
             require(_bettings[_bettingId].firstTicketId <= thisTicketId, "TicketId too low");
             require(msg.sender == _tickets[thisTicketId].owner, "Not the owner");
 
             // Update the betting ticket owner to 0x address
             _tickets[thisTicketId].owner = address(0);
 
-            uint256 rewardForTicketId;
             rewardForTicketId = _calculateRewardsForTicketId(_bettingId, thisTicketId, _brackets[i]);
             
             // Check user is claiming the correct bracket
             require(rewardForTicketId != 0, "No prize for this bracket");
 
             // Increment the reward to transfer
-            rewardInBQBToTransfer += rewardForTicketId;
+            rewardInETHToTransfer += rewardForTicketId;
         }
 
         // Transfer money to msg.sender
-        require(payable(msg.sender).send(rewardInBQBToTransfer));
+        require(payable(msg.sender).send(rewardInETHToTransfer));
 
-        _bettings[_bettingId].amountOfNotClaimed -= rewardInBQBToTransfer;
+        _bettings[_bettingId].amountOfNotClaimed -= rewardInETHToTransfer;
         
-        _userWiningRewardsPerLotteryId[msg.sender][_bettingId] += rewardInBQBToTransfer;
+        _userWiningRewardsPerBettingId[msg.sender][_bettingId] += rewardInETHToTransfer;
 
-        emit TicketsClaim(msg.sender, rewardInBQBToTransfer, _bettingId, _ticketIds.length);
+        emit TicketsClaim(msg.sender, rewardInETHToTransfer, _bettingId, _ticketIds.length);
     }
 
     /**
@@ -926,10 +922,11 @@ contract RoyalBetting is ReentrancyGuard, IRoyalBetting, Ownable {
      * @param _bettingId: betting id
      * @dev Callable by operator
      */
-    function closeLottery(uint256 _bettingId) public override onlyOperator nonReentrant {
+    function closeBetting(uint256 _bettingId) public override onlyOperator nonReentrant {
         require(_bettings[_bettingId].status == Status.Open, "Betting not open");
         require(block.timestamp > _bettings[_bettingId].endTime, "Betting not over");
-        _bettings[_bettingId].firstTicketIdNextLottery = currentTicketId;
+
+        _bettings[_bettingId].firstTicketIdNextBetting = currentTicketId;
 
         if (enableChainlinkRandomGenerator)
         {
@@ -939,52 +936,46 @@ contract RoyalBetting is ReentrancyGuard, IRoyalBetting, Ownable {
 
         _bettings[_bettingId].status = Status.Close;
 
-        emit LotteryClose(_bettingId, currentTicketId);
+        emit BettingClose(_bettingId, currentTicketId);
     }
     
     /**
      * @notice Check betting state
      * @dev Callable by operator
      */
-     function checkLotteryState() external onlyOperator{
+     function checkBettingState() external onlyOperator{
         if (currentBettingId == 0)
             return;
             
         if (block.timestamp >= _bettings[currentBettingId].endTime 
         && _bettings[currentBettingId].status == Status.Open)
         {
-            closeLottery(currentBettingId);
-            drawFinalNumberAndMakeLotteryClaimable(currentBettingId);
+            closeBetting(currentBettingId);
+            drawRacingNumberAndMakeBettingClaimable(currentBettingId);
         }
 
-        if (block.timestamp >= _bettings[currentBettingId].endTime + 3 * 24 * 3600
-            && _bettings[currentBettingId].status == Status.Claimable)
+        if (block.timestamp >= _bettings[currentBettingId].endTime + limitClaimablePeriod
+            && _bettings[currentBettingId].status == Status.Claimable
+            && _bettings[currentBettingId].amountOfNotClaimed > 0)
         {
-            if (_bettings[currentBettingId].amountOfNotClaimed > 0)
-            {
-                require(payable(owner()).send(_bettings[currentBettingId].amountOfNotClaimed));
-                _bettings[currentBettingId].amountOfNotClaimed = 0;
-            }
+            require(payable(owner()).send(_bettings[currentBettingId].amountOfNotClaimed));
+            _bettings[currentBettingId].amountOfNotClaimed = 0;
         }
         
-        if (block.timestamp >= _bettings[currentBettingId].endTime + 5 * 60 
+        if (block.timestamp >= _bettings[currentBettingId].endTime
             && _bettings[currentBettingId].status == Status.Claimable)
         {
-            uint256 _endTime;
-            _endTime = block.timestamp + 24 hours - 1;     // 23h:59m:59s
-            
-            startLottery(_endTime, _bettings[currentBettingId].priceTicketInBQB, 
+            startBetting(_bettings[currentBettingId].priceTicketInETH, 
             _bettings[currentBettingId].rewardsBreakdown);
         }
     }
      
     /**
-     * @notice Draw the final number, calculate reward in BQB per group, and make betting claimable
+     * @notice Draw the final number, calculate reward in ETH per group, and make betting claimable
      * @param _bettingId: betting id
      * @dev Callable by operator
      */
-     
-    function drawFinalNumberAndMakeLotteryClaimable(uint256 _bettingId)
+    function drawRacingNumberAndMakeBettingClaimable(uint256 _bettingId)
         public
         override
         onlyOperator
@@ -995,17 +986,17 @@ contract RoyalBetting is ReentrancyGuard, IRoyalBetting, Ownable {
         uint256 finalNumber;
         if (enableChainlinkRandomGenerator)
         {
-            require(_bettingId == randomGenerator.viewLatestLotteryId(), "Numbers not drawn");
+            require(_bettingId == randomGenerator.viewLatestBettingId(), "Numbers not drawn");
 
             // Calculate the finalNumber based on the randomResult generated by ChainLink's fallback
             finalNumber = randomGenerator.viewRandomResult();
         }
         else
-            finalNumber = generateTicketNumber();
+            finalNumber = generateRacingNumber();
 
         // Calculate the amount to share post-treasury fee
-        uint256 amountToOwner = ownerTransferAmountRate * _bettings[_bettingId].amountCollectedInBQB / 10000;
-        uint256 amountToShareToWinners = _bettings[_bettingId].amountCollectedInBQB - amountToOwner;
+        uint256 amountToOwner = ownerTransferAmountRate * _bettings[_bettingId].amountCollectedInETH / 10000;
+        uint256 amountToShareToWinners = _bettings[_bettingId].amountCollectedInETH - amountToOwner;
 
         uint[] memory candidatedNumber;
         uint number;
@@ -1018,15 +1009,15 @@ contract RoyalBetting is ReentrancyGuard, IRoyalBetting, Ownable {
         }
 
         _bettings[_bettingId].countWinnersPerBracket[0] =
-                _numberTicketsPerLotteryId[_bettingId][candidatedNumber[0] * (10 ** 2)];
+                _numberTicketsPerBettingId[_bettingId][candidatedNumber[0] * (10 ** 2)];
 
         _bettings[_bettingId].countWinnersPerBracket[1] =
-                _numberTicketsPerLotteryId[_bettingId][candidatedNumber[0]] + 
-                _numberTicketsPerLotteryId[_bettingId][candidatedNumber[1]] +
-                _numberTicketsPerLotteryId[_bettingId][candidatedNumber[2]];
+                _numberTicketsPerBettingId[_bettingId][candidatedNumber[0]] + 
+                _numberTicketsPerBettingId[_bettingId][candidatedNumber[1]] +
+                _numberTicketsPerBettingId[_bettingId][candidatedNumber[2]];
 
         for (uint32 i = 0; i < 2; i++) {
-            _bettings[_bettingId].BQBPerBracket[i] =
+            _bettings[_bettingId].ETHPerBracket[i] =
                         ((_bettings[_bettingId].rewardsBreakdown[i] * amountToShareToWinners) /
                             _bettings[_bettingId].countWinnersPerBracket[i] / 10000);
         }
@@ -1040,7 +1031,7 @@ contract RoyalBetting is ReentrancyGuard, IRoyalBetting, Ownable {
         // Send 20% of accumulated ETHs to owner
         require(payable(owner()).send(amountToOwner));
 
-        emit LotteryNumberDrawn(currentBettingId, finalNumber);
+        emit BettingNumberDrawn(currentBettingId, finalNumber);
     }
     
     /**
@@ -1069,13 +1060,11 @@ contract RoyalBetting is ReentrancyGuard, IRoyalBetting, Ownable {
     /**
      * @notice Start the betting
      * @dev Callable by operator
-     * @param _endTime: endTime of the betting
-     * @param _priceTicketInBQB: price of a ticket in BQB
+     * @param _priceTicketInETH: price of a ticket in ETH
      * @param _rewardsBreakdown:
      */
-    function startLottery(
-        uint256 _endTime,
-        uint256[2] memory _priceTicketInBQB,
+    function startBetting(
+        uint256[2] memory _priceTicketInETH,
         uint256[2] memory _rewardsBreakdown
     ) public override onlyOperator {
         require(
@@ -1083,34 +1072,30 @@ contract RoyalBetting is ReentrancyGuard, IRoyalBetting, Ownable {
             "Not time to start betting"
         );
 
-        require(
-            (_rewardsBreakdown[0] +
-                _rewardsBreakdown[1]) == 10000,
-            "Rewards must equal 10000"               // 50%, 25%, 15%, 10%
-        );
+        require((_rewardsBreakdown[0] + _rewardsBreakdown[1]) == 10000, "Rewards must equal 10000");
       
         currentBettingId++;
 
         _bettings[currentBettingId] = Betting({
             status: Status.Open,
             startTime: block.timestamp,
-            endTime: _endTime,
-            priceTicketInBQB: _priceTicketInBQB,
+            endTime: block.timestamp + placePeriod,
+            priceTicketInETH: _priceTicketInETH,
             rewardsBreakdown: _rewardsBreakdown,
-            BQBPerBracket: [uint256(0), uint256(0)],
+            ETHPerBracket: [uint256(0), uint256(0)],
             countWinnersPerBracket: [uint256(0), uint256(0)],
             firstTicketId: currentTicketId,
-            firstTicketIdNextLottery: currentTicketId,
-            amountCollectedInBQB: 0,
+            firstTicketIdNextBetting: currentTicketId,
+            amountCollectedInETH: 0,
             finalNumber: 0,
             amountOfPurchasedPeople:0,
             amountOfNotClaimed:0
         });
 
-        emit LotteryOpen(
+        emit BettingOpen(
             currentBettingId,
             block.timestamp,
-            _endTime,
+            block.timestamp + placePeriod,
             currentTicketId
         );
     }
@@ -1134,6 +1119,10 @@ contract RoyalBetting is ReentrancyGuard, IRoyalBetting, Ownable {
         return operatorAddress;
     }
 
+    function setPlacePeriod(uint _placePeriod) public {
+        placePeriod = _placePeriod;
+    }
+
     /**
      * @notice View current betting id
      */
@@ -1145,7 +1134,7 @@ contract RoyalBetting is ReentrancyGuard, IRoyalBetting, Ownable {
      * @notice View betting information
      * @param _bettingId: betting id
      */
-    function viewLottery(uint256 _bettingId) external view returns (Betting memory) {
+    function viewBetting(uint256 _bettingId) external view returns (Betting memory) {
         return _bettings[_bettingId];
     }
 
@@ -1193,7 +1182,7 @@ contract RoyalBetting is ReentrancyGuard, IRoyalBetting, Ownable {
 
         // Check ticketId is within range
         if (
-            (_bettings[_bettingId].firstTicketIdNextLottery < _ticketId) &&
+            (_bettings[_bettingId].firstTicketIdNextBetting < _ticketId) &&
             (_bettings[_bettingId].firstTicketId >= _ticketId)
         ) {
             return 0;
@@ -1221,7 +1210,7 @@ contract RoyalBetting is ReentrancyGuard, IRoyalBetting, Ownable {
 
         // Confirm that the two transformed numbers are the same, if not throw
         if (winningTicketNumber == userNumber) {
-            return _bettings[_bettingId].BQBPerBracket[_bracket];
+            return _bettings[_bettingId].ETHPerBracket[_bracket];
         } else {
             return 0;
         }
