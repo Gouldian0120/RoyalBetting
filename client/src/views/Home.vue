@@ -65,6 +65,12 @@
           <div class="text-h7 pl-2"><span class="hilight">{{this.$store.state.royalbetting.pendingRewards}} ETH</span></div>
           <div class="text-h6 my-5">Random Number</div>
           <div class="text-h7 pl-2"><span class="hilight">{{this.$store.state.royalbetting.randomNumber}}</span></div>
+          <div class="text-h6 my-5">My Ticket Numbers</div>
+          <div class="text-h7 pl-2"><span class="hilight">{{this.$store.state.royalbetting.ticketNumbersOfAccount}}</span></div>
+          <div class="text-h6 my-5">Winners at the winning place</div>
+          <div class="text-h7 pl-2"><span class="hilight">{{this.$store.state.royalbetting.addressOfwinners1}}</span></div>
+          <div class="text-h6 my-5">Winners at the 1st - 3rd place</div>
+          <div class="text-h7 pl-2"><span class="hilight">{{this.$store.state.royalbetting.addressOfwinners2}}</span></div>
         </v-card>
       </v-col>
     </v-row>

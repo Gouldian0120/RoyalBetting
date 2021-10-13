@@ -8,7 +8,7 @@ import abiROYALBETTING from '@/abi/royalbetting.json'
 BigNumber.config({ EXPONENTIAL_AT: 100 })
 
 const ADDR_OWNER = ''
-const ADDR_TOKEN_ROYALBETTING = '0xe431A3A8e2a003a339C2B963786C9d66F0484DaE'
+const ADDR_TOKEN_ROYALBETTING = '0x31Ae48132cd7551594ca7b05f18F382bB108EE10'
 
 Vue.use(Vuex)
 
@@ -19,7 +19,7 @@ export default new Vuex.Store({
     messageType: null,
     searchResult:false,
     contracts: {
-        tokenRoyalBetting: null,
+      tokenRoyalBetting: null,  
     },
     royalbetting: {
       startTime: Number,
@@ -38,7 +38,10 @@ export default new Vuex.Store({
       amountOfNotClaimed: BigNumber,
       pendingRewards: BigNumber,
       claimablePeriod: Number,
-      randomNumber:0
+      randomNumber:0,
+      ticketNumbersOfAccount: [],
+      addressOfwinners1: [],
+      addressOfwinners2: []
     },
     isOwner() {
         if(this.account==null)
@@ -108,6 +111,19 @@ export default new Vuex.Store({
           .call().then((ret)=>{
             state.royalbetting.claimablePeriod = parseInt(state.royalbetting.endTime) + parseInt(ret);
           })
+
+          state.contracts.tokenRoyalBetting.methods.viewUserInfoForBettingId(state.account.address, currentBettingId)
+          .call().then((ret)=>{
+            console.log(ret)
+            state.royalbetting.ticketNumbersOfAccount = ret;
+          })
+
+          state.contracts.tokenRoyalBetting.methods.viewWinnersInfo(currentBettingId)
+          .call().then((ret)=>{
+            state.royalbetting.addressOfwinners1 = ret.winners1;
+            state.royalbetting.addressOfwinners2 = ret.winners2;
+          })
+
         }).catch((error)=>{
         console.error("tokenRoyalBetting.viewcurrentBettingId",error)
       });

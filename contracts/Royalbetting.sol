@@ -597,13 +597,6 @@ interface IRoyalBetting {
     function closeBetting(uint256 _bettingId) external;
 
     /**
-     * @notice Draw the final number, calculate reward in ETH per group, and make betting claimable
-     * @param _bettingId: betting id
-     * @dev Callable by operator
-     */
-    function drawRacingNumberAndMakeBettingClaimable(uint256 _bettingId) external;
-
-    /**
      * @notice Start the betting
      * @dev Callable by operator
      * @param _priceInWinningPlace: price of a ticket in ETH WinningPlace
@@ -696,7 +689,10 @@ contract RoyalBetting is ReentrancyGuard, IRoyalBetting, Ownable {
     
    // Keep track of user wining rewards for a given bettingId
     mapping(address => mapping(uint256 => uint256)) public _userWiningRewardsPerBettingId;
-
+    
+    mapping(uint => mapping(uint => address[])) public _selectedAddressForWinningPlace;
+    mapping(uint => mapping(uint => address[])) public _selectedAddressForThirdPlace;
+    
     modifier notContract() {
         require(!_isContract(msg.sender), "Contract not allowed");
         require(msg.sender == tx.origin, "Proxy contract not allowed");
@@ -814,18 +810,19 @@ contract RoyalBetting is ReentrancyGuard, IRoyalBetting, Ownable {
         else if (_placeKind == FIRST_THIRD_PLACE)
             newTicketNumber = _ticketNumber;
 
-        if (_isUserTicketIdsPerBettingId[msg.sender][_bettingId][newTicketNumber])
-            return;
+        require(!_isUserTicketIdsPerBettingId[msg.sender][_bettingId][newTicketNumber], "This number is already bought for this place");
 
         if (_placeKind == WINNING_PLACE)
         {
             require(msg.value == _bettings[_bettingId].priceInWinningPlace, "Price is error.");
             _bettings[_bettingId].amountCollectedInETH += _bettings[_bettingId].priceInWinningPlace;
+            _selectedAddressForWinningPlace[_bettingId][newTicketNumber].push(msg.sender);
         }
         else
         {
             require(msg.value == _bettings[_bettingId].priceInThirdPlace, "Price is error.");
             _bettings[_bettingId].amountCollectedInETH += _bettings[_bettingId].priceInThirdPlace;
+            _selectedAddressForThirdPlace[_bettingId][newTicketNumber].push(msg.sender);
         }
         
         if (_userTicketIdsPerBettingId[msg.sender][_bettingId].length == 0)
@@ -981,6 +978,8 @@ contract RoyalBetting is ReentrancyGuard, IRoyalBetting, Ownable {
         }
 
         _bettings[_bettingId].status = Status.Close;
+        
+        drawRacingNumberAndMakeBettingClaimable(_bettingId);
 
         emit BettingClose(_bettingId, currentTicketId);
     }
@@ -1021,10 +1020,7 @@ contract RoyalBetting is ReentrancyGuard, IRoyalBetting, Ownable {
      * @dev Callable by operator
      */
     function drawRacingNumberAndMakeBettingClaimable(uint256 _bettingId)
-        public
-        override
-        onlyOperator
-        nonReentrant
+        internal
     {
         require(_bettings[_bettingId].status == Status.Close, "Betting not close");
         
@@ -1301,6 +1297,79 @@ contract RoyalBetting is ReentrancyGuard, IRoyalBetting, Ownable {
             winningNumber = winningNumber % (10 ** ((j-1)*2));
 
             candidatedNumber[10-j] = number;
+        }
+    }
+    
+    /**
+     * @notice View user ticket ids, numbers, and statuses of user for a given lottery
+     * @param _user: user address
+     * @param _bettingId: Betting id
+     */
+    function viewUserInfoForBettingId(
+        address _user,
+        uint256 _bettingId
+    )
+        external
+        view
+        returns (uint256[] memory)
+    {
+        uint256 length = _userTicketIdsPerBettingId[_user][_bettingId].length;
+
+        uint256[] memory bettingTicketIds = new uint256[](length);
+        uint256[] memory ticketNumbers = new uint256[](length);
+
+        for (uint256 i = 0; i < length; i++) {
+            bettingTicketIds[i] = _userTicketIdsPerBettingId[_user][_bettingId][i];
+            
+            if (_tickets[bettingTicketIds[i]].number >= 100)
+                ticketNumbers[i] = _tickets[bettingTicketIds[i]].number / (10 ** 2);
+            else
+                ticketNumbers[i] = _tickets[bettingTicketIds[i]].number;
+        }
+
+        return (ticketNumbers);
+    }
+    
+    /**
+     * @notice View winners info
+     * @param _bettingId: _betting id
+     */
+    function viewWinnersInfo(uint256 _bettingId)
+        external
+        view
+        returns (address[] memory winners1, address[] memory winners2)
+    {
+        require(_bettings[_bettingId].status == Status.Claimable, "Betting not claimable");
+        
+        uint256[] memory candidatedNumber = new uint256[](3);
+        
+        calculateRacingResult(candidatedNumber, _bettings[_bettingId].finalNumber);
+        
+        uint nlengthOfWinner1 = _selectedAddressForWinningPlace[_bettingId][candidatedNumber[0] * (10 ** 2)].length;
+        
+        uint nlengthOfWinner2 = _selectedAddressForThirdPlace[_bettingId][candidatedNumber[0]].length; 
+        uint nlengthOfWinner3 = _selectedAddressForThirdPlace[_bettingId][candidatedNumber[1]].length;
+        uint nlengthOfWinner4 = _selectedAddressForThirdPlace[_bettingId][candidatedNumber[2]].length;
+                                
+        winners1 = new address[](nlengthOfWinner1);
+        
+        winners1 = _selectedAddressForWinningPlace[_bettingId][candidatedNumber[0] * (10 ** 2)];
+        
+        winners2 = new address[](nlengthOfWinner2 + nlengthOfWinner3 + nlengthOfWinner4);
+        
+        for (uint i=0; i<nlengthOfWinner2; i++)
+        {
+            winners2[i] = _selectedAddressForThirdPlace[_bettingId][candidatedNumber[0]][i];
+        }
+        
+        for (uint i=nlengthOfWinner2; i<nlengthOfWinner2 + nlengthOfWinner3; i++)
+        {
+            winners2[i] = _selectedAddressForThirdPlace[_bettingId][candidatedNumber[1]][i - nlengthOfWinner2];
+        }
+        
+        for (uint i=nlengthOfWinner2 + nlengthOfWinner3; i<nlengthOfWinner2 + nlengthOfWinner3 + nlengthOfWinner4; i++)
+        {
+            winners2[i] = _selectedAddressForThirdPlace[_bettingId][candidatedNumber[2]][i - nlengthOfWinner2 - nlengthOfWinner3];
         }
     }
 
