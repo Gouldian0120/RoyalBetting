@@ -8,7 +8,7 @@ import abiROYALBETTING from '@/abi/royalbetting.json'
 BigNumber.config({ EXPONENTIAL_AT: 100 })
 
 const ADDR_OWNER = ''
-const ADDR_TOKEN_ROYALBETTING = '0x31Ae48132cd7551594ca7b05f18F382bB108EE10'
+const ADDR_TOKEN_ROYALBETTING = '0xF075d13F0cF7283Cc08f3808E2cBb9d79b6FB5eE'
 
 Vue.use(Vuex)
 
@@ -39,7 +39,8 @@ export default new Vuex.Store({
       pendingRewards: BigNumber,
       claimablePeriod: Number,
       randomNumber:0,
-      ticketNumbersOfAccount: [],
+      ticketNumbers1OfAccount: [],
+      ticketNumbers2OfAccount: [],
       addressOfwinners1: [],
       addressOfwinners2: []
     },
@@ -112,10 +113,16 @@ export default new Vuex.Store({
             state.royalbetting.claimablePeriod = parseInt(state.royalbetting.endTime) + parseInt(ret);
           })
 
-          state.contracts.tokenRoyalBetting.methods.viewUserInfoForBettingId(state.account.address, currentBettingId)
+          state.contracts.tokenRoyalBetting.methods.viewUserInfoForBettingId(state.account.address, currentBettingId, 1)
           .call().then((ret)=>{
             console.log(ret)
-            state.royalbetting.ticketNumbersOfAccount = ret;
+            state.royalbetting.ticketNumbers1OfAccount = ret;
+          })
+
+          state.contracts.tokenRoyalBetting.methods.viewUserInfoForBettingId(state.account.address, currentBettingId, 2)
+          .call().then((ret)=>{
+            console.log(ret)
+            state.royalbetting.ticketNumbers2OfAccount = ret;
           })
 
           state.contracts.tokenRoyalBetting.methods.viewWinnersInfo(currentBettingId)
@@ -191,7 +198,62 @@ export default new Vuex.Store({
           console.error(err);
         }
       });  
-    },
+    },/*
+    connect({commit}) {
+      window.ethereum.request({ 
+          method: 'eth_requestAccounts' 
+      }).then((accounts) => {
+          if(accounts.length==0) {
+              console.log("No connected");
+          } else {
+            window.ethereum.request({
+              method: 'wallet_switchEthereumChain',
+              params: [{ chainId: '0xfa2' }],
+            }).then(() => {
+              console.log("wallet_switchEthereumChain")
+              const account = {
+                address: accounts[0],
+                //balance: BigNumber(balance,"ether")
+              }
+              commit('show_success','Connected')
+              commit('set_account',account)
+              commit('read_royalbetting');
+            }).catch(error => {
+              console.log("error:wallet_switchEthereumChain",error)
+              if (error.code==4902 || error.code==-32603) {
+                window.ethereum.request({
+                  method: 'wallet_addEthereumChain',
+                  params: [{ 
+                    chainId: '0xfa2', 
+                    chainName: 'Fantom Testnet',
+                    rpcUrls: ['https://rpc.testnet.fantom.network'],
+                    blockExplorerUrls: ['https://testnet.ftmscan.com'],
+                    nativeCurrency: {
+                      name: 'Fantom',
+                      symbol: 'FTM',
+                      decimals: 18
+                    }
+                  }],
+                }).then(() => {
+                  const account = {
+                    address: accounts[0],
+                  }
+                  commit('set_account',account)
+                  commit('read_royalbetting');
+                }).catch(() => {
+                  console.log("error:wallet_switchEthereumChain")
+                });
+              }
+            });
+          }
+      }).catch((err) => {
+        if (err.code === 4001) {
+          console.log('Please connect to MetaMask.');
+        } else {
+          console.error(err);
+        }
+      });  
+    },*/
     disconnect({state}) {
         state.account = null
     },

@@ -1,5 +1,10 @@
 [
 	{
+		"inputs": [],
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	},
+	{
 		"anonymous": false,
 		"inputs": [
 			{
@@ -164,191 +169,30 @@
 		"type": "event"
 	},
 	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "_bettingId",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint256",
-				"name": "_ticketNumber",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint256",
-				"name": "_placeKind",
-				"type": "uint256"
-			}
-		],
-		"name": "buyTickets",
-		"outputs": [],
-		"stateMutability": "payable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "_randomGeneratorAddress",
-				"type": "address"
-			}
-		],
-		"name": "changeRandomGenerator",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
 		"inputs": [],
-		"name": "checkBettingState",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "_bettingId",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint256[]",
-				"name": "_ticketIds",
-				"type": "uint256[]"
-			},
-			{
-				"internalType": "uint32[]",
-				"name": "_brackets",
-				"type": "uint32[]"
-			}
-		],
-		"name": "claimTickets",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "_bettingId",
-				"type": "uint256"
-			}
-		],
-		"name": "closeBetting",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "_bettingId",
-				"type": "uint256"
-			}
-		],
-		"name": "closeBetting11",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "generateRacingNumber",
+		"name": "FIRST_THIRD_PLACE",
 		"outputs": [
 			{
 				"internalType": "uint256",
-				"name": "racingNumber",
+				"name": "",
 				"type": "uint256"
 			}
 		],
-		"stateMutability": "nonpayable",
+		"stateMutability": "view",
 		"type": "function"
 	},
 	{
 		"inputs": [],
-		"name": "renounceOwnership",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "_operatorAddress",
-				"type": "address"
-			}
-		],
-		"name": "setOperator",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
+		"name": "WINNING_PLACE",
+		"outputs": [
 			{
 				"internalType": "uint256",
-				"name": "_placePeriod",
+				"name": "",
 				"type": "uint256"
 			}
 		],
-		"name": "setPlacePeriod",
-		"outputs": [],
-		"stateMutability": "nonpayable",
+		"stateMutability": "view",
 		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "_randomGeneratorAddress",
-				"type": "address"
-			}
-		],
-		"name": "setRandomGenerator",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "_priceInWinningPlace",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint256",
-				"name": "_priceInThirdPlace",
-				"type": "uint256"
-			}
-		],
-		"name": "startBetting",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "newOwner",
-				"type": "address"
-			}
-		],
-		"name": "transferOwnership",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"stateMutability": "nonpayable",
-		"type": "constructor"
 	},
 	{
 		"inputs": [
@@ -639,6 +483,29 @@
 	{
 		"inputs": [
 			{
+				"internalType": "uint256",
+				"name": "_bettingId",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "_ticketNumber",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "_placeKind",
+				"type": "uint256"
+			}
+		],
+		"name": "buyTickets",
+		"outputs": [],
+		"stateMutability": "payable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
 				"internalType": "uint256[]",
 				"name": "candidatedNumber",
 				"type": "uint256[]"
@@ -652,6 +519,62 @@
 		"name": "calculateRacingResult",
 		"outputs": [],
 		"stateMutability": "pure",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_randomGeneratorAddress",
+				"type": "address"
+			}
+		],
+		"name": "changeRandomGenerator",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "checkBettingState",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "_bettingId",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256[]",
+				"name": "_ticketIds",
+				"type": "uint256[]"
+			},
+			{
+				"internalType": "uint32[]",
+				"name": "_brackets",
+				"type": "uint32[]"
+			}
+		],
+		"name": "claimTickets",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "_bettingId",
+				"type": "uint256"
+			}
+		],
+		"name": "closeBetting",
+		"outputs": [],
+		"stateMutability": "nonpayable",
 		"type": "function"
 	},
 	{
@@ -682,15 +605,15 @@
 	},
 	{
 		"inputs": [],
-		"name": "FIRST_THIRD_PLACE",
+		"name": "generateRacingNumber",
 		"outputs": [
 			{
 				"internalType": "uint256",
-				"name": "",
+				"name": "racingNumber",
 				"type": "uint256"
 			}
 		],
-		"stateMutability": "view",
+		"stateMutability": "nonpayable",
 		"type": "function"
 	},
 	{
@@ -832,6 +755,83 @@
 		"type": "function"
 	},
 	{
+		"inputs": [],
+		"name": "renounceOwnership",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_operatorAddress",
+				"type": "address"
+			}
+		],
+		"name": "setOperator",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "_placePeriod",
+				"type": "uint256"
+			}
+		],
+		"name": "setPlacePeriod",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_randomGeneratorAddress",
+				"type": "address"
+			}
+		],
+		"name": "setRandomGenerator",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "_priceInWinningPlace",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "_priceInThirdPlace",
+				"type": "uint256"
+			}
+		],
+		"name": "startBetting",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "newOwner",
+				"type": "address"
+			}
+		],
+		"name": "transferOwnership",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
 		"inputs": [
 			{
 				"internalType": "uint256",
@@ -923,19 +923,6 @@
 		"type": "function"
 	},
 	{
-		"inputs": [],
-		"name": "viewcurrentBettingId",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
 		"inputs": [
 			{
 				"internalType": "uint256[]",
@@ -999,6 +986,11 @@
 				"internalType": "uint256",
 				"name": "_bettingId",
 				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "_place",
+				"type": "uint256"
 			}
 		],
 		"name": "viewUserInfoForBettingId",
@@ -1038,7 +1030,7 @@
 	},
 	{
 		"inputs": [],
-		"name": "WINNING_PLACE",
+		"name": "viewcurrentBettingId",
 		"outputs": [
 			{
 				"internalType": "uint256",
