@@ -8,7 +8,7 @@ import abiROYALBETTING from '@/abi/royalbetting.json'
 BigNumber.config({ EXPONENTIAL_AT: 100 })
 
 const ADDR_OWNER = ''
-const ADDR_TOKEN_ROYALBETTING = '0xf5ca1aaC340c5FF505Fe8605304B29728Bd7B39c'
+const ADDR_TOKEN_ROYALBETTING = '0xe431A3A8e2a003a339C2B963786C9d66F0484DaE'
 
 Vue.use(Vuex)
 
@@ -130,7 +130,7 @@ export default new Vuex.Store({
           } else {
             window.ethereum.request({
               method: 'wallet_switchEthereumChain',
-              params: [{ chainId: '0xfa2' }],
+              params: [{ chainId: '0x61' }],
             }).then(() => {
               console.log("wallet_switchEthereumChain")
               const account = {
@@ -146,10 +146,10 @@ export default new Vuex.Store({
                 window.ethereum.request({
                   method: 'wallet_addEthereumChain',
                   params: [{ 
-                    chainId: '0xfa2', 
-                    chainName: 'FantomNetwork',
-                    rpcUrls: ['https://rpc.testnet.fantom.network'],
-                    blockExplorerUrls: ['https://testnet.ftmscan.com'],
+                    chainId: '0x61', 
+                    chainName: 'SmartChain Testnet',
+                    rpcUrls: ['https://data-seed-prebsc-1-s1.binance.org:8545/'],
+                    blockExplorerUrls: ['https://testnet.bscscan.com'],
                     nativeCurrency: {
                       name: 'Fantom',
                       symbol: 'FTM',
