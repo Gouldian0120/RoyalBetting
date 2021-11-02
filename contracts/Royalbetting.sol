@@ -996,7 +996,7 @@ contract RoyalBetting is ReentrancyGuard, IRoyalBetting, Ownable {
         && _bettings[currentBettingId].status == Status.Open)
         {
             closeBetting(currentBettingId);
-            drawRacingNumberAndMakeBettingClaimable(currentBettingId);
+//          drawRacingNumberAndMakeBettingClaimable(currentBettingId);
         }
 
         if (block.timestamp >= _bettings[currentBettingId].endTime + limitClaimablePeriod
@@ -1304,10 +1304,12 @@ contract RoyalBetting is ReentrancyGuard, IRoyalBetting, Ownable {
      * @notice View user ticket ids, numbers, and statuses of user for a given lottery
      * @param _user: user address
      * @param _bettingId: Betting id
+     * @param _place: place kind
      */
     function viewUserInfoForBettingId(
         address _user,
-        uint256 _bettingId
+        uint256 _bettingId,
+        uint _place
     )
         external
         view
@@ -1316,15 +1318,49 @@ contract RoyalBetting is ReentrancyGuard, IRoyalBetting, Ownable {
         uint256 length = _userTicketIdsPerBettingId[_user][_bettingId].length;
 
         uint256[] memory bettingTicketIds = new uint256[](length);
-        uint256[] memory ticketNumbers = new uint256[](length);
 
+        uint index;
         for (uint256 i = 0; i < length; i++) {
             bettingTicketIds[i] = _userTicketIdsPerBettingId[_user][_bettingId][i];
             
-            if (_tickets[bettingTicketIds[i]].number >= 100)
-                ticketNumbers[i] = _tickets[bettingTicketIds[i]].number / (10 ** 2);
+            if (_place == WINNING_PLACE )
+            {
+                if (_tickets[bettingTicketIds[i]].number >= 100)
+                {
+                    index++;
+                }
+            }
             else
-                ticketNumbers[i] = _tickets[bettingTicketIds[i]].number;
+            {
+                if (_tickets[bettingTicketIds[i]].number < 100)
+                {
+                    index++;
+                }
+            }
+        }
+        
+        uint256[] memory ticketNumbers = new uint256[](index);
+        
+        index = 0;
+        for (uint256 i = 0; i < length; i++) {
+            bettingTicketIds[i] = _userTicketIdsPerBettingId[_user][_bettingId][i];
+            
+            if (_place == WINNING_PLACE )
+            {
+                if (_tickets[bettingTicketIds[i]].number >= 100)
+                {
+                    ticketNumbers[index] = _tickets[bettingTicketIds[i]].number / (10 ** 2);   
+                    index++;
+                }
+            }
+            else
+            {
+                if (_tickets[bettingTicketIds[i]].number < 100)
+                {
+                    ticketNumbers[index] = _tickets[bettingTicketIds[i]].number;
+                    index++;
+                }
+            }
         }
 
         return (ticketNumbers);
